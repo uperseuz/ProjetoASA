@@ -30,16 +30,82 @@ A infraestrutura é criada via VirtualBox + Vagrant, com as seguintes caracterí
 | cli     | Host cliente                              | DHCP           | cli.joao.caua.devops | Suporte a X11 e autofs     |
 
 
-🔧 Provisionamento com Vagrant
+## 🔧 Provisionamento com Vagrant
+O Vagrantfile provisiona automaticamente as quatro máquinas com:
 
-O arquivo Vagrantfile cria automaticamente as quatro máquinas com:
+- 📦 Box: debian/bookworm64  
+- 🖥️ Provider: VirtualBox  
+- 🧠 RAM: 512MB (exceto cli com 1024MB)  
+- 🚫 DHCP interno do VirtualBox desativado via gatilho  
+- 🆔 MACs fixos para permitir DHCP estático  
+- 💽 Configuração de discos, hostname e rede
 
- - Box debian/bookworm64
+### ▶️ Subir as VMs:
+vagrant up
 
- - RAM de 512MB (exceto cli com 1024MB)
+### ⬇️ Acessar uma VM:
+vagrant ssh <nome-da-vm>
 
- - Desativação do DHCP interno do VirtualBox via gatilho
+## 🤖 Automação com Ansible
+O Ansible realiza a configuração automática das máquinas, incluindo:
 
- - Configuração de rede, hostname e discos adicionais quando necessário
+- 🔄 Atualização completa do sistema  
+- ⏱️ Configuração de NTP (chrony) e timezone America/Recife  
+- 👥 Criação do grupo ifpb e usuários da equipe  
+- 🔐 Configuração avançada do SSH:
+  - Apenas chaves públicas  
+  - Sem login de root  
+  - Acesso limitado a grupos autorizados  
+- 📡 Instalação do cliente NFS  
+- 🛡️ Permissão de sudo para o grupo ifpb
 
- - MAC addresses fixos para permitir DHCP estático
+## 📡 Serviços Configurados
+
+### 📁 Servidor arq
+- 🚨 DHCP autoritativo  
+- 🌐 DNS com zona direta e reversa  
+- 💾 LVM usando 3 discos  
+- 📤 NFS exportando /dados/nfs  
+- 👤 Usuário dedicado nfs-ifpb
+
+### 🗄️ Servidor db
+- 🛢️ MariaDB  
+- 🔄 Autofs montando /dados/nfs em /var/nfs
+
+### 🌐 Servidor app
+- 🧭 Apache2 com index.html personalizado  
+- 🔄 Autofs montando /dados/nfs
+
+### 💻 Cliente cli
+- 🌍 Firefox e X11  
+- 🔐 SSH com suporte gráfico  
+- 🔄 Autofs montando /dados/nfs
+
+## ▶️ Como Executar o Projeto
+
+1. 📥 Clone o repositório:
+   git clone https://github.com/seuusuario/seurepo.git
+
+2. 📁 Entre no diretório:
+   cd seurepo
+
+3. ▶️ Suba as máquinas:
+   vagrant up
+
+4. 🤖 Execute os playbooks Ansible:
+   ansible-playbook -i inventory playbook.yml
+
+## 📁 Estrutura do Repositório
+/
+├── Vagrantfile
+├── inventory/
+│   └── hosts.ini
+├── ansible/
+│   ├── playbook.yml
+│   └── roles/
+│       ├── base/
+│       ├── arq/
+│       ├── db/
+│       ├── app/
+│       └── cli/
+└── README.md
