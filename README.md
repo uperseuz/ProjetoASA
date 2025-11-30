@@ -81,20 +81,6 @@ O Ansible realiza a configuração automática das máquinas, incluindo:
 - 🔐 SSH com suporte gráfico  
 - 🔄 Autofs montando /dados/nfs
 
-## ▶️ Como Executar o Projeto
-
-1. 📥 Clone o repositório:
-   git clone https://github.com/seuusuario/seurepo.git
-
-2. 📁 Entre no diretório:
-   cd seurepo
-
-3. ▶️ Suba as máquinas:
-   vagrant up
-
-4. 🤖 Execute os playbooks Ansible:
-   ansible-playbook -i inventory playbook.yml
-
 ## 📁 Estrutura do Repositório
 /
 ├── Vagrantfile
