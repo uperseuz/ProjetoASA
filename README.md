@@ -8,7 +8,7 @@ Período: 2025.2
 
 João Wictor Ferreira Henriques da Silva – Matrícula: 20241380005
 
-Nome2 Sobrenome2 – Matrícula: XXXXXXX
+Cauã Victor Fonseca D'Almeida – Matrícula: 20141380021
 
 📄 Descrição Detalhada do Projeto
 
@@ -24,10 +24,10 @@ A infraestrutura é criada via VirtualBox + Vagrant, com as seguintes caracterí
 
 | Máquina | Função                                    | IP             | Hostname               | Observações                |
 | ------- | ----------------------------------------- | -------------- | ---------------------- | -------------------------- |
-| arq     | Servidor de arquivos, DHCP, DNS, LVM, NFS | 192.168.56.1XX | arq.nome1.nome2.devops | 3 discos extras de 10GB    |
-| db      | Servidor MariaDB                          | DHCP estático  | db.nome1.nome2.devops  | Usa autofs para montar NFS |
-| app     | Servidor Apache                           | DHCP estático  | app.nome1.nome2.devops | Usa autofs para montar NFS |
-| cli     | Host cliente                              | DHCP           | cli.nome1.nome2.devops | Suporte a X11 e autofs     |
+| arq     | Servidor de arquivos, DHCP, DNS, LVM, NFS | 192.168.56.105 | arq.joao.caua.devops | 3 discos extras de 10GB    |
+| db      | Servidor MariaDB                          | DHCP estático  | db.joao.caua.devops  | Usa autofs para montar NFS |
+| app     | Servidor Apache                           | DHCP estático  | app.joao.caua.devops | Usa autofs para montar NFS |
+| cli     | Host cliente                              | DHCP           | cli.joao.caua.devops | Suporte a X11 e autofs     |
 
 
 🔧 Provisionamento com Vagrant
