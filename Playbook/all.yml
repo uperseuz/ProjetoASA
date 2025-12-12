@@ -1,1 +1,56 @@
+---
+- name: Atualização de todas as máquinas.
+  hosts: all
+  become: yes
 
+  vars:
+    ntp_servers:
+      - pool.ntp.br
+
+
+  tasks:
+#Atualização do sistema operacional (Update e Upgrade)>
+    - name: Atualiza o Sistema operacional.
+      apt:
+        upgrade: dist
+        update_cache: yes
+
+        
+#instalação do Chrony>
+    - name: Instalação do Chrony
+      apt:
+        name: chrony
+        state: present
+        update_cache: yes
+      
+    
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+  - name: Muda o Timezone para America/Recife.
+    become: true
+    community.general.timezone:
+      name: America/Recife
