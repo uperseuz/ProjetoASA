@@ -1,0 +1,102 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+  # ================= CONFIGURAÇÕES GERAIS =================
+
+  # Box padrão
+  config.vm.box = "debian/bookworm64"
+
+  # Desabilitar geração automática de chaves SSH
+  config.ssh.insert_key = false
+
+  # Desabilitar verificação de Guest Additions
+  config.vbguest.auto_update = false
+
+  # Trigger para desabilitar DHCP do VirtualBox (Host-Only)
+  config.trigger.before :up do |trigger|
+    trigger.name = "Desabilitar DHCP do VirtualBox"
+    trigger.run = {
+      inline: "VBoxManage dhcpserver remove --netname HostInterfaceNetworking-vboxnet0 || true"
+    }
+  end
+
+  # Provider VirtualBox (configurações globais)
+  config.vm.provider "virtualbox" do |vb|
+    vb.linked_clone = true
+  end
+
+  # ================= SERVIDOR DE ARQUIVOS (arq) =================
+  config.vm.define "arq" do |arq|
+    arq.vm.hostname = "arq.caua.joao.devops"
+
+    # IP estático na rede privada
+    arq.vm.network "private_network", ip: "192.168.56.121"
+
+    arq.vm.provider "virtualbox" do |vb|
+      vb.memory = 512
+
+      # Criar 3 discos adicionais de 10 GB
+      (1..3).each do |disk_num|
+        vb.customize [
+          "createhd",
+          "--filename", "disk-arq-#{disk_num}.vdi",
+          "--size", 10240
+        ]
+
+        vb.customize [
+          "storageattach", :id,
+          "--storagectl", "SATA Controller",
+          "--port", disk_num,
+          "--device", 0,
+          "--type", "hdd",
+          "--medium", "disk-arq-#{disk_num}.vdi"
+        ]
+      end
+    end
+  end
+
+  # ================= SERVIDOR DE BANCO DE DADOS (db) =================
+  config.vm.define "db" do |db|
+    db.vm.hostname = "db.caua.joao.devops"
+
+    # DHCP com MAC fixo para reserva estática
+    db.vm.network "private_network",
+      type: "dhcp",
+      mac: "080027AAAAAA"
+
+    db.vm.provider "virtualbox" do |vb|
+      vb.memory = 512
+      vb.customize ["modifyvm", :id, "--macaddress1", "080027AAAAAA"]
+    end
+  end
+
+  # ================= SERVIDOR DE APLICAÇÃO (app) =================
+  config.vm.define "app" do |app|
+    app.vm.hostname = "app.caua.joao.devops"
+
+    # DHCP com MAC fixo para reserva estática
+    app.vm.network "private_network",
+      type: "dhcp",
+      mac: "080027BBBBBB"
+
+    app.vm.provider "virtualbox" do |vb|
+      vb.memory = 512
+      vb.customize ["modifyvm", :id, "--macaddress1", "080027BBBBBB"]
+    end
+  end
+
+  # ================= HOST CLIENTE (cli) =================
+  config.vm.define "cli" do |cli|
+    cli.vm.hostname = "cli.caua.joao.devops"
+
+    # DHCP normal
+    cli.vm.network "private_network", type: "dhcp"
+
+    cli.vm.provider "virtualbox" do |vb|
+      vb.memory = 1024
+    end
+  end
+
+end
