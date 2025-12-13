@@ -1,99 +1,136 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+# SUBSTITUIR ANTES DE USAR:
+# - nome1, nome2: Primeiros nomes dos integrantes
+# - XX: Dois últimos dígitos da matrícula do primeiro integrante
+# - YY: Dois últimos dígitos da matrícula do segundo integrante
+# - XY: Combinar últimos dígitos (ex: 2545 se matrículas terminam em 25 e 45)
 
-# Configurações gerais
 Vagrant.configure("2") do |config|
+  # Configuração comum para todas as VMs
+  config.vm.box = "debian/bookworm64"
+  config.vm.box_check_update = false
+  
   # Desabilitar verificação de guest additions
   config.vbguest.auto_update = false
   
+  # Desabilitar inserção de chave SSH (Vagrant 2.0+)
+  config.ssh.insert_key = false
+  
   # Configuração do provider VirtualBox
   config.vm.provider "virtualbox" do |vb|
-    # Desabilitar servidor DHCP do VirtualBox
+    vb.linked_clone = true
+    
+    # Gatilho para desabilitar servidor DHCP do VirtualBox
     vb.customize ["modifyvm", :id, "--natdnshostresolver1", "off"]
     vb.customize ["modifyvm", :id, "--natdnsproxy1", "off"]
-
-  config.ssh.insert_key = false
-end
-
+  end
   
   # ========== SERVIDOR DE ARQUIVOS (arq) ==========
   config.vm.define "arq" do |arq|
-    arq.vm.box = "debian/bookworm64"
-    arq.vm.hostname = "arq.caua.joao.devops" 
+    # SUBSTITUIR: nome1 e nome2 pelos primeiros nomes
+    arq.vm.hostname = "arq.nome1.nome2.devops"
     
-    # Configuração da rede - IP estático
-    arq.vm.network "private_network", ip: "192.168.56.121"
+    # SUBSTITUIR: XX pelos dois últimos dígitos da matrícula do primeiro integrante
+    arq.vm.network "private_network", ip: "192.168.56.1XX"
     
-    # Configurações do VirtualBox
     arq.vm.provider "virtualbox" do |vb|
       vb.memory = 512
-      vb.linked_clone = true
+      vb.name = "arq-devops"
       
       # Criar 3 discos adicionais de 10GB cada
       (1..3).each do |disk_num|
-        vb.customize ['createhd', 
-                     '--filename', "disk-arq-#{disk_num}.vdi",
-                     '--size', 10 * 1024]  # 10GB em MB
+        disk_path = File.expand_path("disk-arq-#{disk_num}.vdi", File.dirname(__FILE__))
+        
+        unless File.exist?(disk_path)
+          vb.customize ['createhd', 
+                       '--filename', disk_path,
+                       '--size', 10 * 1024,  # 10GB
+                       '--variant', 'Standard']
+        end
+        
         vb.customize ['storageattach', :id,
                      '--storagectl', 'SATA Controller',
-                     '--port', disk_num.to_s,
+                     '--port', disk_num + 1,
                      '--device', '0',
                      '--type', 'hdd',
-                     '--medium', "disk-arq-#{disk_num}.vdi"]
+                     '--medium', disk_path]
       end
+    end
+    
+    # Provisionamento com Ansible
+    arq.vm.provision "ansible" do |ansible|
+      ansible.playbook = "playbooks/arq.yml"
+      ansible.become = true
+      ansible.verbose = "v"
     end
   end
   
   # ========== SERVIDOR DE BANCO DE DADOS (db) ==========
   config.vm.define "db" do |db|
-    db.vm.box = "debian/bookworm64"
-    db.vm.hostname = "db.caua.joao.devops"
+    # SUBSTITUIR: nome1 e nome2 pelos primeiros nomes
+    db.vm.hostname = "db.nome1.nome2.devops"
     
-    # Configuração da rede via DHCP com MAC estático para IP reservado
-    # O VirtualBox DHCP usará este MAC para atribuir IP estático
+    # Usar DHCP (o servidor arq fornecerá IP estático via MAC)
+    # MAC específico para reserva DHCP
     db.vm.network "private_network", type: "dhcp",
-      mac: "080027AAAAAA"  # MAC address único para reserva DHCP
+      mac: "080027AAAAAA"
     
-    # Configurações do VirtualBox
     db.vm.provider "virtualbox" do |vb|
       vb.memory = 512
-      vb.linked_clone = true
-      # Configurar o MAC address no VirtualBox também
-      vb.customize ['modifyvm', :id, '--macaddress1', '080027AAAAAA']
+      vb.name = "db-devops"
+    end
+    
+    # Provisionamento com Ansible
+    db.vm.provision "ansible" do |ansible|
+      ansible.playbook = "playbooks/db.yml"
+      ansible.become = true
+      ansible.verbose = "v"
     end
   end
   
   # ========== SERVIDOR DE APLICAÇÃO (app) ==========
   config.vm.define "app" do |app|
-    app.vm.box = "debian/bookworm64"
-    app.vm.hostname = "app.caua.joao.devops"
+    # SUBSTITUIR: nome1 e nome2 pelos primeiros nomes
+    app.vm.hostname = "app.nome1.nome2.devops"
     
-    # Configuração da rede via DHCP com MAC estático para IP reservado
+    # Usar DHCP (o servidor arq fornecerá IP estático via MAC)
+    # MAC específico para reserva DHCP
     app.vm.network "private_network", type: "dhcp",
-      mac: "080027BBBBBB"  # MAC address único para reserva DHCP
+      mac: "080027BBBBBB"
     
-    # Configurações do VirtualBox
     app.vm.provider "virtualbox" do |vb|
       vb.memory = 512
-      vb.linked_clone = true
-      # Configurar o MAC address no VirtualBox também
-      vb.customize ['modifyvm', :id, '--macaddress1', '080027BBBBBB']
+      vb.name = "app-devops"
+    end
+    
+    # Provisionamento com Ansible
+    app.vm.provision "ansible" do |ansible|
+      ansible.playbook = "playbooks/app.yml"
+      ansible.become = true
+      ansible.verbose = "v"
     end
   end
   
   # ========== HOST CLIENTE (cli) ==========
   config.vm.define "cli" do |cli|
-    cli.vm.box = "debian/bookworm64"
-    cli.vm.hostname = "cli.caua.joao.devops"
+    # SUBSTITUIR: nome1 e nome2 pelos primeiros nomes
+    cli.vm.hostname = "cli.nome1.nome2.devops"
     
-    # Configuração da rede via DHCP normal
+    # Usar DHCP normal
     cli.vm.network "private_network", type: "dhcp"
     
-    # Configurações do VirtualBox
     cli.vm.provider "virtualbox" do |vb|
-      vb.memory = 1024  # 1GB RAM para o cliente
-      vb.linked_clone = true
+      vb.memory = 1024  # 1GB RAM
+      vb.name = "cli-devops"
+    end
+    
+    # Provisionamento com Ansible
+    cli.vm.provision "ansible" do |ansible|
+      ansible.playbook = "playbooks/cli.yml"
+      ansible.become = true
+      ansible.verbose = "v"
     end
   end
 end
