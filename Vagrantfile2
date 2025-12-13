@@ -1,1 +1,98 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
 
+# Desabilitar geração de chaves SSH
+ENV['VAGRANT_NO_SSH'] = 'true'
+
+# Configurações gerais
+Vagrant.configure("2") do |config|
+  # Desabilitar verificação de guest additions
+  config.vbguest.auto_update = false
+  
+  # Configuração do provider VirtualBox
+  config.vm.provider "virtualbox" do |vb|
+    # Desabilitar servidor DHCP do VirtualBox
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "off"]
+    vb.customize ["modifyvm", :id, "--natdnsproxy1", "off"]
+  end
+  
+  # ========== SERVIDOR DE ARQUIVOS (arq) ==========
+  config.vm.define "arq" do |arq|
+    arq.vm.box = "debian/bookworm64"
+    arq.vm.hostname = "arq.caua.joao.devops" 
+    
+    # Configuração da rede - IP estático
+    arq.vm.network "private_network", ip: "192.168.56.121"
+    
+    # Configurações do VirtualBox
+    arq.vm.provider "virtualbox" do |vb|
+      vb.memory = 512
+      vb.linked_clone = true
+      
+      # Criar 3 discos adicionais de 10GB cada
+      (1..3).each do |disk_num|
+        vb.customize ['createhd', 
+                     '--filename', "disk-arq-#{disk_num}.vdi",
+                     '--size', 10 * 1024]  # 10GB em MB
+        vb.customize ['storageattach', :id,
+                     '--storagectl', 'SATA Controller',
+                     '--port', disk_num.to_s,
+                     '--device', '0',
+                     '--type', 'hdd',
+                     '--medium', "disk-arq-#{disk_num}.vdi"]
+      end
+    end
+  end
+  
+  # ========== SERVIDOR DE BANCO DE DADOS (db) ==========
+  config.vm.define "db" do |db|
+    db.vm.box = "debian/bookworm64"
+    db.vm.hostname = "db.caua.joao.devops"
+    
+    # Configuração da rede via DHCP com MAC estático para IP reservado
+    # O VirtualBox DHCP usará este MAC para atribuir IP estático
+    db.vm.network "private_network", type: "dhcp",
+      mac: "080027AAAAAA"  # MAC address único para reserva DHCP
+    
+    # Configurações do VirtualBox
+    db.vm.provider "virtualbox" do |vb|
+      vb.memory = 512
+      vb.linked_clone = true
+      # Configurar o MAC address no VirtualBox também
+      vb.customize ['modifyvm', :id, '--macaddress1', '080027AAAAAA']
+    end
+  end
+  
+  # ========== SERVIDOR DE APLICAÇÃO (app) ==========
+  config.vm.define "app" do |app|
+    app.vm.box = "debian/bookworm64"
+    app.vm.hostname = "app.caua.joao.devops"
+    
+    # Configuração da rede via DHCP com MAC estático para IP reservado
+    app.vm.network "private_network", type: "dhcp",
+      mac: "080027BBBBBB"  # MAC address único para reserva DHCP
+    
+    # Configurações do VirtualBox
+    app.vm.provider "virtualbox" do |vb|
+      vb.memory = 512
+      vb.linked_clone = true
+      # Configurar o MAC address no VirtualBox também
+      vb.customize ['modifyvm', :id, '--macaddress1', '080027BBBBBB']
+    end
+  end
+  
+  # ========== HOST CLIENTE (cli) ==========
+  config.vm.define "cli" do |cli|
+    cli.vm.box = "debian/bookworm64"
+    cli.vm.hostname = "cli.caua.joao.devops"
+    
+    # Configuração da rede via DHCP normal
+    cli.vm.network "private_network", type: "dhcp"
+    
+    # Configurações do VirtualBox
+    cli.vm.provider "virtualbox" do |vb|
+      vb.memory = 1024  # 1GB RAM para o cliente
+      vb.linked_clone = true
+    end
+  end
+end
