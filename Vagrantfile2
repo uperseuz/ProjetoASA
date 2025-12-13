@@ -12,9 +12,7 @@ Vagrant.configure("2") do |config|
     # Desabilitar servidor DHCP do VirtualBox
     vb.customize ["modifyvm", :id, "--natdnshostresolver1", "off"]
     vb.customize ["modifyvm", :id, "--natdnsproxy1", "off"]
-  end
 
-Vagrant.configure("2") do |config|
   config.ssh.insert_key = false
 end
 
