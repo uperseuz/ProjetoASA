@@ -1,0 +1,142 @@
+---
+# Playbook principal para configuração das VMs
+# Este playbook executa todas as tarefas de provisionamento nas 4 máquinas virtuais
+
+- name: Configuração inicial de todas as máquinas
+  hosts: all  # Executa em todos os hosts definidos no inventário
+  become: yes  # Executa tarefas com privilégios de superusuário (sudo)
+  
+  # Variáveis que podem ser personalizadas
+  vars:
+    timezone: "America/Recife"  # Fuso horário a ser configurado
+    ntp_server: "pool.ntp.br"   # Servidor NTP brasileiro
+    grupo_ifpb: "ifpb"           # Nome do grupo que será criado
+    
+    # Lista de usuários a serem criados - AJUSTE AQUI COM OS NOMES REAIS!
+    usuarios:
+      # Formato: nome completo e login (primeiro nome em minúsculas)
+      - { nome: "Fulano da Silva", login: "fulano" }
+      - { nome: "Beltrano Santos", login: "beltrano" }
+    
+    # Grupos que terão permissão para acessar via SSH
+    grupos_permitidos_ssh: ['vagrant', 'ifpb']
+
+  tasks:
+    # TAREFA 1: Atualizar o sistema operacional
+    - name: Atualizar cache de pacotes
+      apt:
+        update_cache: yes        # Equivalente ao 'apt update'
+        cache_valid_time: 3600   # Considera cache válido por 1 hora
+    
+    - name: Fazer upgrade do sistema
+      apt:
+        upgrade: dist            # Upgrades todas as distribuições
+        autoremove: yes          # Remove pacotes não necessários
+
+    # TAREFA 2: Instalar pacotes necessários
+    - name: Instalar pacotes necessários
+      apt:
+        name:
+          - chrony      # Servidor/cliente NTP
+          - nfs-common  # Cliente NFS
+          - sudo        # Gerenciamento de privilégios
+        state: present  # Garante que os pacotes estão instalados
+
+    # TAREFA 3: Ajustar fuso horário
+    - name: Configurar timezone
+      timezone:
+        name: "{{ timezone }}"  # Aplica o fuso horário definido
+
+    # TAREFA 4: Configurar servidor NTP (chrony)
+    - name: Configurar servidor NTP (chrony)
+      template:
+        src: chrony.conf.j2      # Template Jinja2 com configurações
+        dest: /etc/chrony/chrony.conf  # Local do arquivo de configuração
+      notify: restart chrony     # Notifica handler para reiniciar serviço
+
+    # TAREFA 5: Criar grupo ifpb
+    - name: Criar grupo ifpb
+      group:
+        name: "{{ grupo_ifpb }}"
+        state: present  # Garante que o grupo existe
+
+    # TAREFA 6: Criar usuários e adicionar ao grupo ifpb
+    - name: Criar usuários e adicionar ao grupo ifpb
+      user:
+        name: "{{ item.login }}"   # Login do usuário
+        comment: "{{ item.nome }}" # Nome completo
+        groups: "{{ grupo_ifpb }}" # Adiciona ao grupo ifpb
+        append: yes                # Adiciona ao grupo sem remover outros
+        shell: /bin/bash           # Shell padrão
+        create_home: yes           # Cria diretório home
+      loop: "{{ usuarios }}"       # Itera sobre lista de usuários
+
+    # TAREFA 7: Permitir sudo sem senha para grupo ifpb
+    - name: Configurar sudo para grupo ifpb
+      copy:
+        content: "%{{ grupo_ifpb }} ALL=(ALL) NOPASSWD: ALL"  # Regra sudo
+        dest: /etc/sudoers.d/ifpb  # Arquivo de configuração sudo
+        validate: 'visudo -cf %s'  # Valida sintaxe antes de aplicar
+
+    # TAREFA 8: Configurar servidor SSH
+    - name: Configurar SSH
+      template:
+        src: sshd_config.j2        # Template de configuração SSH
+        dest: /etc/ssh/sshd_config
+        validate: 'sshd -t -f %s'  # Valida configuração SSH
+      notify: restart ssh          # Notifica handler para reiniciar SSH
+
+    # TAREFA 9: Preparar diretório .ssh para chaves
+    - name: Criar diretório .ssh para os usuários
+      file:
+        path: "/home/{{ item.login }}/.ssh"  # Caminho do diretório
+        state: directory           # Garante que é um diretório
+        owner: "{{ item.login }}"  # Define proprietário
+        group: "{{ grupo_ifpb }}"  # Define grupo
+        mode: '0700'               # Permissões: apenas dono pode acessar
+      loop: "{{ usuarios }}"
+
+    # TAREFA 10: Gerar chaves SSH para os usuários
+    - name: Gerar chaves SSH para os usuários
+      openssh_keypair:
+        path: "/home/{{ item.login }}/.ssh/id_rsa"  # Caminho da chave privada
+        type: rsa                  # Tipo de chave
+        size: 2048                 # Tamanho da chave (bits)
+        owner: "{{ item.login }}"  # Define proprietário
+        group: "{{ grupo_ifpb }}"  # Define grupo
+      loop: "{{ usuarios }}"
+
+    # TAREFA 11: Configurar authorized_keys
+    - name: Copiar chave pública para authorized_keys
+      copy:
+        # Lê o conteúdo do arquivo de chave pública gerado
+        content: "{{ lookup('file', '/home/{{ item.login }}/.ssh/id_rsa.pub') }}"
+        dest: "/home/{{ item.login }}/.ssh/authorized_keys"  # Arquivo de autorização
+        owner: "{{ item.login }}"  # Define proprietário
+        group: "{{ grupo_ifpb }}"  # Define grupo
+        mode: '0600'               # Permissões: apenas dono pode ler/escrever
+      loop: "{{ usuarios }}"
+
+    # TAREFA 12: Criar banner de mensagem do dia (MOTD)
+    - name: Criar banner de mensagem do dia
+      copy:
+        content: |  # Conteúdo multi-linha
+          Acesso apenas para pessoas com autorização expressa!!!
+        dest: /etc/motd  # Message Of The Day
+        owner: root
+        group: root
+        mode: '0644'     # Leitura para todos, escrita apenas para root
+
+  # Handlers: tarefas que são executadas apenas quando notificadas
+  handlers:
+    - name: restart chrony
+      service:
+        name: chrony
+        state: restarted  # Reinicia serviço
+        enabled: yes      # Habilita inicialização automática
+
+    - name: restart ssh
+      service:
+        name: sshd        # Nome do serviço SSH
+        state: restarted
+        enabled: yes
